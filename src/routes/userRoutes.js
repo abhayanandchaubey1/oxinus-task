@@ -1,6 +1,7 @@
 import { Container } from 'typedi';
 import {
   routes, featureLevel, get, put,
+  deleteMethod,
 } from './utils';
 import { Right } from '../auth';
 import { UserService } from '../services';
@@ -22,5 +23,14 @@ export default () => {
       const service = Container.get(UserService);
       const updateDto = await updateUserProfileSchema.validateAsync(req.body);
       return await service.modifyUserProfile(updateDto, { ...req.currentUser });
+    });
+
+    
+  deleteMethod(featureLevel.production,
+    Right.user.DELETE_USER_PROFILE,
+    routes.user.PROFILE,
+    async (req) => {
+      const service = Container.get(UserService);
+      return await service.deleteUserProfile(req, { ...req.currentUser });
     });
 };

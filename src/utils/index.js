@@ -8,3 +8,5 @@ export * from './constants';
 export * from './regexPatterns';
 export * from './commonFunctions';
 export * from './requestValidators';
+export * from './handlebarsUtils';
+export {default as EmailClient} from './emailClient';

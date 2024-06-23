@@ -25,6 +25,7 @@ class Right {
       /* User Profile */
       FETCH_USER_PROFILE: 'FETCH_USER_PROFILE',
       MODIFY_USER_PROFILE: 'MODIFY_USER_PROFILE',
+      DELETE_USER_PROFILE: 'DELETE_USER_PROFILE',
     });
 
     // helper methods and stuff

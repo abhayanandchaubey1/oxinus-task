@@ -7,6 +7,7 @@ export default Object.freeze({
   security: {
     SIGN_UP: `${API_ROOT}/signup`,
     LOGIN: `${API_ROOT}/login`,
+    LOGIN_THIRD_PARTY: `${API_ROOT}/login/thirdparty`,
     SOCIAL_LOGIN: `${API_ROOT}/social-login`,
   },
   user: {

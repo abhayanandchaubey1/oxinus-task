@@ -50,6 +50,33 @@ const configLoader = convict({
       env: 'DB_PORT',
     },
   },
+  nodemailer: {
+    host: {
+      format: String,
+      default: '',
+      env: 'NODMAILER_HOST',
+    },
+    port: {
+      format: 'port',
+      default: 0,
+      env: 'NODMAILER_PORT',
+    },
+    user: {
+      format: String,
+      default: '',
+      env: 'NODMAILER_USER',
+    },
+    password: {
+      format: String,
+      default: '',
+      env: 'NODMAILER_PASSWORD',
+    },
+    serviceTechSender: {
+      format: String,
+      default: '',
+      env: 'SERVICETECH_SENDER',
+    },
+  },
   authTokens: {
     privateKey: {
       format: '*',

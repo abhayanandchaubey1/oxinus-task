@@ -65,6 +65,121 @@ class SecurityService {
       });
     }
 
+    async thirdPartyLogin(ipAddress, thirdPartyUser) {
+      const messageKey = 'thirdParyLogin';
+      return this.txs.withTransaction(async (client) => {
+        let payload = {};
+        const { type: loginType, token: loginToken } = thirdPartyUser;
+        if (loginType === THIRD_PARTY_LOGIN_TYPES.GOOGLE) {
+          payload = await SecurityService.validateGoogleToken(loginToken);
+        } else if (loginType === THIRD_PARTY_LOGIN_TYPES.FACEBOOK) {
+          payload = await SecurityService.validateFacebookToken(loginToken);
+        }
+
+        if (!payload || !payload.email) {
+          throw new HttpException.BadRequest(formatErrorResponse(messageKey, 'invalidToken'));
+        }
+
+        let user = await this.dao.findUserByUsername(client, payload.email);
+        if (!user) {
+          const profilePic = await SecurityService.uploadProfilePicFromUrl(
+            payload.profilePic, payload,
+          );
+          const defaultCurrency = await this.currencyService.findDefaultCurrency();
+          const id = await this.dao.signUp(client,
+            {
+              ...payload,
+              profilePic,
+              status: USER_STATUS.ACTIVE,
+              emailVerified: true,
+              currencyId: defaultCurrency.id,
+            });
+          user = await this.dao.findUserById(client, id);
+        }
+
+        if (!(await this.canLogin(user)) || !user.isCustomer) {
+          throw new HttpException.BadRequest(formatErrorResponse(messageKey, 'notAllowed'));
+        }
+
+        const roleIds = user.roles.map((role) => role.getId());
+        const type = Math.max(...roleIds);
+        const token = SecurityService.createToken(ipAddress, user.username,
+          config.authTokens.audience.app, type, !(user.lastLogin));
+        await this.dao.markUserLogin(client, user.id);
+        await this.dao.addThirdPartyLogin(client, user.id,
+          payload.socialId, loginType);
+
+        return token;
+      });
+    }
+
+    async ssoLogin(ipAddress, employeeDto) {
+      const messageKey = 'ssoLogin';
+      return this.txs.withTransaction(async (client) => {
+        let payload = {};
+        const { type: loginType, token: loginToken } = employeeDto;
+        if (loginType === SSO_LOGIN_TYPES.GSUITE) {
+          payload = await SecurityService.validateGoogleToken(loginToken, true);
+        }
+
+        if (!payload || !payload.email) {
+          throw new HttpException.BadRequest(formatErrorResponse(messageKey, 'invalidToken'));
+        }
+
+        const company = await this.companyService.findCompanyByGsuiteDomain(client,
+          payload.gsuiteDomain);
+
+        if (!company) {
+          throw new HttpException.BadRequest(formatErrorResponse(messageKey, 'notExist'));
+        }
+
+        if (!company.gsuiteActive) {
+          throw new HttpException.BadRequest(formatErrorResponse(messageKey, 'notAllowed'));
+        }
+
+        let user = await this.dao.findUserByUsername(client, payload.email);
+
+        if (!user) {
+          await this.restrictionService.checkAllowedAction(messageKey,
+            ORDER_OWNER_TYPES.COMPANY, company.id, API_ACTIONS.MODIFY_ENTITY,
+            RESTRICTION_CODES.EMPLOYEE_COUNT, 1);
+
+          const profilePic = await SecurityService.uploadProfilePicFromUrl(
+            payload.profilePic, payload,
+          );
+
+          const leaveCount = await this.companyLeaveService.getCompanyLeaveCountById(
+            client, company.id,
+          );
+
+          const employee = await this.employeeService.createEmployee(client, {
+            ...payload,
+            profilePic,
+            companyId: company.id,
+            leaveCount,
+            active: true,
+            emailVerified: true,
+          });
+
+          user = await this.dao.findUserById(client, employee.id);
+        }
+
+        if (!(await this.canLogin(user)) || !user.isCompanyEmployee) {
+          throw new HttpException.BadRequest(formatErrorResponse(messageKey, 'notAllowed'));
+        }
+
+        const roleIds = user.roles.map((role) => role.getId());
+        const type = Math.max(...roleIds);
+        const token = SecurityService.createToken(ipAddress, user.username,
+          config.authTokens.audience.app, type, !(user.lastLogin));
+        await this.dao.markUserLogin(client, user.id);
+        await this.dao.addThirdPartyLogin(client, user.id,
+          payload.socialId, loginType);
+
+        return token;
+      });
+    }
+
     /** Used to signup only mobile app users */
     async signUp(ipAddress, signUpDto) {
       return await this.txs.withTransaction(async (client) => {

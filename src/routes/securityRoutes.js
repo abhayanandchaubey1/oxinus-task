@@ -1,8 +1,9 @@
 import { Container } from 'typedi';
 import { routes, featureLevel, publicPost } from './utils';
-import { SecurityService } from '../services';
+import { Right } from '../auth';
+import { SecurityService, UserService } from '../services';
 import {
-  loginSchema, signupSchema,
+  loginSchema, signupSchema, ssoLoginSchema, thirdPartyLoginSchema, updateUserProfileSchema
 } from '../models';
 
 /**
@@ -26,6 +27,29 @@ export default () => {
       const service = Container.get(SecurityService);
       const { email, password } = await loginSchema.validateAsync(req.body);
       return await service.login(req.ip, email, password);
+    },
+  );
+
+  publicPost(
+    featureLevel.production,
+    routes.security.LOGIN_THIRD_PARTY,
+    async (req) => {
+      const service = Container.get(SecurityService);
+      const thirdPartyUser = await thirdPartyLoginSchema.validateAsync(req.body);
+      const token = await service.thirdPartyLogin(req.ip, thirdPartyUser);
+      return { token };
+    },
+  );
+
+  
+  publicPost(
+    featureLevel.production,
+    routes.security.SOCIAL_LOGIN,
+    async (req) => {
+      const service = Container.get(SecurityService);
+      const employeeDto = await ssoLoginSchema.validateAsync(req.body);
+      const token = await service.ssoLogin(req.ip, employeeDto);
+      return { token };
     },
   );
 };
