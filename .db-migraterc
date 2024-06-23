@@ -1,0 +1,5 @@
+{
+  "sql-file": true,
+  "configFile": "src/config/db-migration.json",
+  "env":"pg"
+}
